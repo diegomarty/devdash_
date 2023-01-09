@@ -1,4 +1,8 @@
-import { githubApiResponses } from "../../github_api_responses";
+import { useEffect, useState } from "react";
+
+import { config } from "../../devdash_config";
+import { GitHubApiGitHubRepositoryRepository } from "../../infrastructure/GitHubApiGitHubRepositoryRepository";
+import { GitHubApiResponses } from "../../infrastructure/GitHubApiResponse";
 import { ReactComponent as Brand } from "./brand.svg";
 import { ReactComponent as Check } from "./check.svg";
 import styles from "./Dashboard.module.scss";
@@ -11,22 +15,32 @@ import { ReactComponent as Start } from "./star.svg";
 import { ReactComponent as Unlock } from "./unlock.svg";
 import { ReactComponent as Watchers } from "./watchers.svg";
 
+const isoToReadableDate = (lastUpdate: string): string => {
+	const lastUpdatedDate = new Date(lastUpdate);
+	const currentDate = new Date();
+	const diffTime = currentDate.getDate() - lastUpdatedDate.getDate();
+	const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
+
+	if (diffDays === 0) {
+		return "today";
+	}
+
+	if (diffDays > 30) {
+		return "more than a mont ago";
+	}
+
+	return `${diffDays} days ago`;
+};
+const repository = new GitHubApiGitHubRepositoryRepository(config.github_access_token);
+
 export function Dashboard() {
-	const isoToReadableDate = (lastUpdate: string): string => {
-		const lastUpdatedDate = new Date(lastUpdate);
-		const currentDate = new Date();
-		const diffDays = lastUpdatedDate.getDate() - currentDate.getDate();
+	const [githubApiResponses, setGithubApiResponse] = useState<GitHubApiResponses[]>([]);
 
-		if (diffDays === 0) {
-			return "today";
-		}
-
-		if (diffDays > 30) {
-			return "more than a mont ago";
-		}
-
-		return `${diffDays} days ago`;
-	};
+	useEffect(() => {
+		repository.search(config.widgets.map((widget) => widget.repository_url)).then((responses) => {
+			setGithubApiResponse(responses);
+		});
+	}, []);
 
 	return (
 		<>
@@ -54,9 +68,9 @@ export function Dashboard() {
 						<div className={styles.widget__body}>
 							<div className={styles.widget__status}>
 								<p>Last update {isoToReadableDate(widget.repositoryData.updated_at)}</p>
-								{widget.CiStatus.workflow_runs.length > 0 && (
+								{widget.ciStatus.workflow_runs.length > 0 && (
 									<div>
-										{widget.CiStatus.workflow_runs[0].status === "completed" ? (
+										{widget.ciStatus.workflow_runs[0].status === "completed" ? (
 											<Check />
 										) : (
 											<Error />
@@ -85,7 +99,7 @@ export function Dashboard() {
 							</div>
 							<div className={styles.widget__stat}>
 								<PullRequests />
-								<span>{widget.pullRequest.length}</span>
+								<span>{widget.pullRequests.length}</span>
 							</div>
 						</footer>
 					</article>
